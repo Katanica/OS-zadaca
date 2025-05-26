@@ -16,23 +16,23 @@ void ispis_stanja() {
     printf("Stanje: ");
     for (int i = 0; i < n_stolova; i++) {
         printf("Stol %d: ", i + 1);
-        if (stolovi[i] == -1) printf("- ");
+        if (stolovi[i] == -1) printf("x ");
         else printf("%d ", stolovi[i]);
+        printf(" ");
     }
     printf("\n");
 }
 
 // Provjera ima li slobodnih stolova
 int ima_slobodnih_stolova() {
-    for (int i = 0; i < n_stolova; i++) {
+    for (int i = 0; i < n_stolova; i++) 
         if (stolovi[i] == -1) return 1;
-    }
     return 0;
 }
 
 // LAMPORTOV ALGORITAM: osigurava ulaz SAMO JEDNE dretve u kriticni odsjecak
 void udi_u_kriticni_odsjecak(int i) {
-    ULAZ[i] = 1;    // dretva "uzima broj za red"
+    ULAZ[i] = 1;    // dretva radi sa varijablom BROJ[i];
     int max_broj = 0;
     for (int j = 0; j < n_dretvi; j++) {    // trazi najveci broj u polju BROJ
         if (BROJ[j] > max_broj) max_broj = BROJ[j];
@@ -41,9 +41,12 @@ void udi_u_kriticni_odsjecak(int i) {
     ULAZ[i] = 0;    // dretva gotova sa uzimanjem broja
     for (int j = 0; j < n_dretvi; j++) {
     /* ^^provjerava sve ostale dretve kako bi bili sigurni da je dretva[i] na redu */
-        while (ULAZ[j] != 0) { /* nista */ } // ceka dok dretva j ne uzme svoj broj
-        while (BROJ[j] != 0 && (BROJ[j] < BROJ[i] || (BROJ[j] == BROJ[i] && j < i))) { /* nista */ }
-        // ^^^ sve dok dretva j ima manji prioritet ili je ista ali ima manji ID
+        if(j!=i){
+            while (ULAZ[j] != 0) { /* nista */ } // ceka dok dretva j ne uzme svoj max_broj. 
+            // ^^ Sluzi kako dretva i ne bi pročitala max broj od j prije zavrsetka postavljanja
+            while (BROJ[j] != 0 && (BROJ[j] < BROJ[i] || (BROJ[j] == BROJ[i] && j < i))) { /* nista */ }    // 0 = nije u kriticnom odsjecku
+            // ^^ sve dok dretva j ima veći prioritet od i ili su isti prioriteti ali ima manji ID
+        }
     }
 }
 
@@ -54,9 +57,7 @@ void izadi_iz_kriticnog_odsjecka(int i) {
 
 // Funkcija dretve. Prima pokazivac na argument (ID dretve). Vraca pokazivac
 void *dretva(void *arg) {
-    int id = *(int *)arg; // ID dretve (pocinje od 1)
-    srand(time(NULL) + id); // Inicijalizacija SEED-A / poc. vrijednosti
-                            // time(NULL) - sekunde od 1.1.1970.
+    int id = (int)(long)arg; // ID dretve (pocinje od 1)
     while (ima_slobodnih_stolova()) {
         sleep(1); // Cekaj 1 sekundu
         int stol = rand() % n_stolova; // Slucajno odaberi stol
@@ -83,7 +84,7 @@ void *dretva(void *arg) {
 }
 
 int main(int argc, char *argv[]) {
-    // Provjera argumenata naredbenog retka
+    // Provjera broja argumenata naredbenog retka
     if (argc != 3) {
         fprintf(stderr, "Upotreba: %s <broj_dretvi> <broj_stolova>\n", argv[0]);
         exit(1);
@@ -97,28 +98,20 @@ int main(int argc, char *argv[]) {
     ULAZ = (int *)malloc(n_dretvi * sizeof(int));
     BROJ = (int *)malloc(n_dretvi * sizeof(int));
     pthread_t *t_id = (pthread_t *)malloc(n_dretvi * sizeof(pthread_t)); // cuva SLOZENIJE ID-eve dretvi
-    int *arg_id = (int *)malloc(n_dretvi * sizeof(int)); // cuva CITLJIVIJE ID-eve dretvi
 
     // Inicijalizacija
     for (int i = 0; i < n_stolova; i++) stolovi[i] = -1; // Svi stolovi slobodni
     for (int i = 0; i < n_dretvi; i++) {
         ULAZ[i] = 0;
         BROJ[i] = 0;
-        arg_id[i] = i + 1; // ID dretve pocinje od 1
     }
-
     // Stvaranje dretvi
     for (int i = 0; i < n_dretvi; i++) {
-        if (pthread_create(&t_id[i], NULL, dretva, &arg_id[i]) != 0) { // 0 == uspjesno
+        if (pthread_create(&t_id[i], NULL, dretva, (void *)(long)i+1) != 0) { // 0 == uspjesno
             fprintf(stderr, "Greska pri stvaranju dretve %d!\n", i + 1);
             exit(1);
         }
-        /* t_id[i] - polje gdje se spremaju SLOZENIJI ID-evi dretvi
-           NULL - zadane postavke dretve (nema posebnih atributa)
-           dretva - pokazivac na funkciju dretva
-           &arg_id[i] - pokazivac na jednostavnije ID-eve dretvi */
     }
-
     // Cekanje zavrsetka dretvi
     // pthread_join - ceka zavrsetak dretve (0 == uspjesno)
     for (int i = 0; i < n_dretvi; i++) {
@@ -127,13 +120,11 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
-
     // Oslobađanje memorije
     free(stolovi);
     free(ULAZ);
     free(BROJ);
     free(t_id);
-    free(arg_id);
 
     return 0;
 }
