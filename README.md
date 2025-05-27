@@ -6,7 +6,7 @@ Repozitorij sadrži zadaće iz kolegija Operacijski sustavi na FSRE-u. Korišten
   - ZADAĆA 4 - Sinkronizacija procesa semaforima
   - ZADAĆA 5 - Sinkronizacija dretvi
 
-____________________________________________________________-
+_____________________________________________________________________________________________________________________________________________________________________
 
 The repository contains assignments from the course Operating Systems at FSRE. The programming language used is C for the Linux environment. The topics covered are:
 
